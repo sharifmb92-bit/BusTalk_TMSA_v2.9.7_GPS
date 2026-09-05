@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>BusTalk_v 2.9.7_GPS</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- MANIFEST PWA E ICONOS -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icon-152.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        /* 1. MODO NOCTURNO */
+        body.modo-noche { background-color: #121212; color: #ffffff; }
+        body.modo-noche .bg-main { background-color: #121212; }
+        body.modo-noche .bg-card { background-color: #1f2937; border-color: #374151; }
+        body.modo-noche .bg-panel { background-color: #000000; border-color: #374151; }
+        body.modo-noche .text-primary { color: #ffffff !important; }
+        body.modo-noche .text-sub { color: #facc15 !important; font-weight: 800; }
+        body.modo-noche .text-tramo-radar { color: #ffffff !important; font-weight: 900; }
+        body.modo-noche .btn-sec { background-color: #1f2937; border-color: #374151; color: #ffffff !important; }
+        body.modo-noche .text-tiempo-detenido { color: #22c55e !important; font-weight: 900; }
+
+        /* 2. MODO DIURNO GRIS */
+        body.modo-dia-gris { background-color: #e5e7eb; color: #000000; }
+        body.modo-dia-gris .bg-main { background-color: #e5e7eb; }
+        body.modo-dia-gris .bg-card { background-color: #e5e7eb; border: 2px solid #9ca3af; }
+        body.modo-dia-gris .bg-panel { background-color: #d1d5db; border: 2px solid #9ca3af; }
+        body.modo-dia-gris .text-primary { color: #000000 !important; font-weight: 900; }
+        body.modo-dia-gris .text-sub { color: #1f2937 !important; font-weight: 900; }
+        body.modo-dia-gris .text-tramo-radar { color: #000000 !important; font-weight: 900; }
+        body.modo-dia-gris .btn-sec { background-color: #e5e7eb; border: 2px solid #9ca3af; color: #000000 !important; font-weight: 900; }
+        body.modo-dia-gris .text-tiempo-detenido { color: #15803d !important; font-weight: 900; }
+
+        /* 3. MODO DIURNO CREMA */
+        body.modo-dia-crema { background-color: #f4efea; color: #2b1810; }
+        body.modo-dia-crema .bg-main { background-color: #f4efea; }
+        body.modo-dia-crema .bg-card { background-color: #f4efea; border: 1px solid rgba(217, 119, 36, 0.3); }
+        body.modo-dia-crema .bg-panel { background-color: #e8dfd8; border: 1px solid rgba(217, 119, 36, 0.3); }
+        body.modo-dia-crema .text-primary { color: #2b1810 !important; font-weight: 900; }
+        body.modo-dia-crema .text-sub { color: #431407 !important; font-weight: 900; }
+        body.modo-dia-crema .text-tramo-radar { color: #2b1810 !important; font-weight: 900; }
+        body.modo-dia-crema .btn-sec { background-color: #f4efea; border: 1px solid rgba(217, 119, 36, 0.3); color: #2b1810 !important; font-weight: 900; }
+        body.modo-dia-crema .text-tiempo-detenido { color: #15803d !important; font-weight: 900; }
+
+        body { 
+            user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+            padding-top: env(safe-area-inset-top);
+        }
+        
+        /* PTT Animaciones */
+        .ptt-active { background-color: #ef4444 !important; transform: scale(0.92); box-shadow: 0 0 30px rgba(239, 68, 68, 0.8); animation: pulse-red 1s infinite; }
+        @keyframes pulse-red { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.96); } }
+        
+        .ptt-receiving { background-color: #10b981 !important; box-shadow: 0 0 40px rgba(16, 185, 129, 0.9); animation: pulse-green 1s infinite; }
+        @keyframes pulse-green { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+        /* Luces y Alertas */
+        .luz-parada { background-color: #10b981; color: black !important; font-weight: 900; border: 2px solid #047857 !important; }
+        .alerta-lleno { background-color: #ea580c !important; animation: pulse-alert 2s infinite; border-color: #c2410c !important; color: white !important; }
+        .alerta-retraso { background-color: #ca8a04 !important; animation: pulse-alert 2s infinite; border-color: #a16207 !important; color: white !important; }
+        .alerta-averia { background-color: #dc2626 !important; animation: pulse-alert 1s infinite; border-color: #991b1b !important; color: white !important; }
+        @keyframes pulse-alert { 0%, 100% { opacity: 1; } 50% { opacity: 0.75; } }
+
+        /* PAX Alto Contraste */
+        .pax-verde-intenso { color: #16a34a !important; font-weight: 900; font-size: 38px !important; line-height: 1; }
+        .pax-lleno { color: #dc2626 !important; font-weight: 900; font-size: 38px !important; line-height: 1; }
+        .pax-limite { animation: pulse-pax 0.8s infinite; color: #ef4444 !important; font-weight: 900; font-size: 38px !important; line-height: 1; }
+        @keyframes pulse-pax { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: 0.6; } }
+
+        /* Estilos de Radar */
+        .card-radar-ida { border-left-width: 6px !important; border-left-color: #dc2626 !important; }
+        .card-radar-vuelta { border-left-width: 6px !important; border-left-color: #ff8c00 !important; }
+
+        .flecha-ida { color: #dc2626 !important; font-weight: 900; }
+        .flecha-ambar { color: #ff8c00 !important; font-weight: 900; }
+        .flecha-parpadeante { animation: blink 0.8s infinite; }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+        .btn-ida-rojo { background-color: #dc2626 !important; border-color: #991b1b !important; color: #ffffff !important; font-weight: 900; }
+        .btn-vuelta-ambar { background-color: #ff8c00 !important; border-color: #c2410c !important; color: #000000 !important; font-weight: 900; }
+
+        /* PUNTITO EN RUTA MÁS GRANDE Y CON PARPADEO */
+        .punto-rojo { color: #dc2626 !important; font-size: 22px !important; animation: blink 0.8s infinite; }
+        .punto-ambar { color: #ff8c00 !important; font-size: 22px !important; animation: blink 0.8s infinite; }
+
+        .borde-fijo-rojo { border: 3px solid #dc2626 !important; }
+        .borde-fijo-ambar { border: 3px solid #ff8c00 !important; }
+        .borde-parpadeante-rojo { border: 3px solid #dc2626 !important; animation: blink 0.8s infinite; }
+        .borde-parpadeante-ambar { border: 3px solid #ff8c00 !important; animation: blink 0.8s infinite; }
+
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* MODO HORIZONTAL / LANDSCAPE ORIGINAL */
+        @media (orientation: landscape) {
+            .app-container { flex-direction: row !important; }
+            .landscape-radar { width: 50% !important; height: 100% !important; }
+            .landscape-controls { width: 50% !important; height: 100% !important; overflow-y: auto; }
+        }
+    </style>
+</head>
+<body x-data="busTalkApp()" x-init="init()" :class="obtenerClaseModo()" class="font-sans h-screen flex flex-col overflow-hidden transition-colors duration-300">
+
+    <!-- MOTOR PWA -->
+    <script>
+        // medbasha
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(console.error);
+            });
+        }
+    </script>
+
+    <div x-show="estadoRadio === 'recibiendo'" x-transition.opacity class="fixed inset-0 bg-green-500/20 z-[60] pointer-events-none animate-pulse"></div>
+
+    <!-- BANNER AVISO COMPACTO APAGAR RADIO -->
+    <div x-show="mostrarAvisoApagarRadio" x-cloak x-transition class="fixed top-14 left-4 right-4 bg-panel text-primary p-3 rounded-xl shadow-lg z-[90] flex items-center justify-between border-2 border-gray-500">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-info-circle text-2xl text-blue-500"></i>
+            <div>
+                <p class="font-black text-sm uppercase">¿Fin de trayecto?</p>
+                <p class="text-xs font-bold text-sub">Recuerda apagar la radio.</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button @click="cerrarTurno()" class="bg-red-600 text-white font-black px-3 py-2 rounded-lg text-xs uppercase shadow active:scale-95">Apagar</button>
+            <button @click="mostrarAvisoApagarRadio = false" class="bg-gray-600 text-white w-9 h-9 rounded-lg flex items-center justify-center font-bold active:scale-95"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <!-- MODAL CAMBIO DE SENTIDO AUTOMÁTICO AL LLEGAR A FINAL DE RUTA -->
+    <div x-show="mostrarAvisoFinalRuta" x-cloak x-transition class="fixed inset-0 bg-black/80 z-[95] flex items-center justify-center p-4">
+        <div class="bg-panel p-6 rounded-3xl shadow-2xl border-2 border-amber-500 w-full max-w-sm text-center">
+            <i class="fas fa-route text-5xl text-amber-500 mb-4"></i>
+            <h3 class="text-xl font-black text-primary uppercase mb-2">📍 Final de Ruta</h3>
+            <p class="text-base text-sub font-bold mb-6">Has llegado a la última parada. ¿Iniciar trayecto de vuelta?</p>
+            <div class="flex gap-3">
+                <button @click="mostrarAvisoFinalRuta = false" class="flex-1 py-4 rounded-xl border-2 border-gray-500 text-primary font-black">Ignorar</button>
+                <button @click="aceptarCambioSentido()" class="flex-1 py-4 rounded-xl bg-amber-500 text-black font-black shadow-lg uppercase text-lg">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE INICIO -->
+    <div x-show="!sesionIniciada" x-transition.opacity class="fixed inset-0 z-[100] flex flex-col items-center justify-center p-6 backdrop-blur-md bg-black/90">
+        <div class="bg-card p-8 rounded-[2rem] w-full max-w-sm text-center shadow-2xl border">
+            <div class="text-yellow-500 text-6xl mb-6"><i class="fas fa-bus"></i><i class="fas fa-broadcast-tower text-3xl ml-2"></i></div>
+            <h2 class="text-2xl font-black mb-2 uppercase tracking-wider text-primary">BusTalk_v 2.9.7_GPS</h2>
+            <p class="mb-4 text-sm text-sub">Introduce tu servicio (ej. L01) o selecciona ruta.</p>
+            
+            <input type="text" x-model="miBusInput" @input="procesarInputBus()" placeholder="Ej: L01" 
+                   class="w-full p-4 mb-4 rounded-2xl text-center text-xl font-black border-2 outline-none transition-colors bg-panel text-primary border-gray-400 focus:border-yellow-500 uppercase">
+            
+            <button @click="mostrarModalZonas = true" 
+                    class="w-full p-4 mb-6 rounded-2xl text-center text-lg font-bold border-2 flex items-center justify-between transition-colors bg-panel text-primary border-gray-400 hover:border-yellow-500">
+                <span class="truncate flex-1 text-left" :class="miLineaInput ? 'text-amber-600 font-black' : 'text-sub'" x-text="miLineaInput ? miLineaInput : 'Seleccionar Línea / Zona...'"></span>
+                <i class="fas fa-chevron-down text-amber-600 ml-2"></i>
+            </button>
+
+            <button @click="iniciarTurno()" class="w-full bg-yellow-500 active:bg-yellow-600 text-black font-black text-xl py-5 rounded-2xl transition-transform active:scale-95 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+                CONECTAR RADIO
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL DESPLEGABLE DE ZONAS Y RUTAS -->
+    <div x-show="mostrarModalZonas" x-cloak x-transition.opacity class="fixed inset-0 bg-black/90 z-[110] flex items-center justify-center p-4">
+        <div class="bg-card rounded-[2rem] p-6 w-full max-w-sm border max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
+                <h3 class="text-xl font-black text-amber-600 uppercase tracking-wider">Selecciona Zona y Ruta</h3>
+                <button @click="mostrarModalZonas = false" class="text-sub hover:text-primary text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 overflow-y-auto hide-scrollbar flex-1 pr-1">
+                <div class="bg-panel rounded-xl p-3 border border-gray-400">
+                    <p class="text-base uppercase font-black text-amber-600 mb-3 tracking-wider">Rutas Principales</p>
+                    <div class="space-y-2">
+                        <button @click="seleccionarLineaModal('L01 (Ciu - Maó)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L01 (Ciu - Maó)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>Línea 01 (Ciu - Maó)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L01 (Ciu - Maó)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L01 (Maó - Ciu)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L01 (Maó - Ciu)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>Línea 01 (Maó - Ciu)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L01 (Maó - Ciu)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L14 Exprés (Ciu - Maó)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L14 Exprés (Ciu - Maó)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>Línea 14 Exprés (Ciu - Maó)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L14 Exprés (Ciu - Maó)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L14 Exprés (Maó - Ciu)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L14 Exprés (Maó - Ciu)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>Línea 14 Exprés (Maó - Ciu)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L14 Exprés (Maó - Ciu)'"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-panel rounded-xl p-3 border border-gray-400">
+                    <button @click="abrirPoniente = !abrirPoniente" class="w-full flex justify-between items-center text-base uppercase font-black text-sky-600 tracking-wider">
+                        <span>🟠 Zona Centro y Poniente</span>
+                        <i class="fas" :class="abrirPoniente ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                    </button>
+                    
+                    <div x-show="abrirPoniente" x-transition class="space-y-2 mt-3 pt-3 border-t border-gray-400">
+                        <button @click="seleccionarLineaModal('Línea Ciu - Galdana')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'Línea Ciu - Galdana' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L52 (Ciu - Galdana)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'Línea Ciu - Galdana'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('Línea Maó - Galdana')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'Línea Maó - Galdana' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L51 (Maó - Galdana)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'Línea Maó - Galdana'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('Línea Ciu - S. Tomàs')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'Línea Ciu - S. Tomàs' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L72 (Ciu - Sant Tomàs)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'Línea Ciu - S. Tomàs'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('Línea Maó - S. Tomàs')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'Línea Maó - S. Tomàs' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L71 (Maó - Sant Tomàs)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'Línea Maó - S. Tomàs'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('Línea Maó - Son Bou')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'Línea Maó - Son Bou' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L32 (Maó - Son Bou)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'Línea Maó - Son Bou'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('Zona Centro y Poniente')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'Zona Centro y Poniente' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>Genérico Centro/Poniente</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'Zona Centro y Poniente'"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-panel rounded-xl p-3 border border-gray-400">
+                    <button @click="abrirLevante = !abrirLevante" class="w-full flex justify-between items-center text-base uppercase font-black text-blue-600 tracking-wider">
+                        <span>🔵 Zona Maó y Levante</span>
+                        <i class="fas" :class="abrirLevante ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                    </button>
+                    
+                    <div x-show="abrirLevante" x-transition class="space-y-2 mt-3 pt-3 border-t border-gray-400">
+                        <button @click="seleccionarLineaModal('L02 (Maó - Castell)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L02 (Maó - Castell)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L02 (Maó - Es Castell)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L02 (Maó - Castell)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L03 (Maó - S. Lluís)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L03 (Maó - S. Lluís)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L03 (Maó - Sant Lluís)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L03 (Maó - S. Lluís)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L21 (Maó - S. Climent)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L21 (Maó - S. Climent)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L21 (Maó - Sant Climent)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L21 (Maó - S. Climent)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L22 (Maó - Canutells)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L22 (Maó - Canutells)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L22 (Maó - Es Canutells)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L22 (Maó - Canutells)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L31 (Maó - C. Porter)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L31 (Maó - C. Porter)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L31 (Maó - Alaior - C. Porter)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L31 (Maó - C. Porter)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L08 (Maó - C. Porter)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L08 (Maó - C. Porter)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L08 (Maó - Directo C. Porter)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L08 (Maó - C. Porter)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L91 (Maó - S\'Algar)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L91 (Maó - S\'Algar)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L91 (Maó - S'Algar - Alcaufar)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L91 (Maó - S\'Algar)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L92 (Maó - P. Prima)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L92 (Maó - P. Prima)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L92 (Maó - Punta Prima)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L92 (Maó - P. Prima)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('L93 (Maó - Binibèquer)')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'L93 (Maó - Binibèquer)' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>L93 (Maó - Binibèquer)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'L93 (Maó - Binibèquer)'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('Zona Maó y Levante')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'Zona Maó y Levante' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>Genérico Maó / Levante</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'Zona Maó y Levante'"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-panel rounded-xl p-3 border border-gray-400">
+                    <p class="text-base uppercase font-black text-sub mb-3 tracking-wider">Otras Rutas</p>
+                    <div class="space-y-2">
+                        <button @click="seleccionarLineaModal('Escolar')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'Escolar' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>Rutas Escolares</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'Escolar'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('Discrecional')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'Discrecional' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>Discrecional / Otros</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'Discrecional'"></i>
+                        </button>
+                        <button @click="seleccionarLineaModal('General')" class="w-full text-left p-3 rounded-xl text-lg font-bold transition-colors flex justify-between items-center" :class="miLineaInput === 'General' ? 'bg-yellow-500 text-black font-black' : 'bg-card text-primary'">
+                            <span>🌍 Canal General (Todos)</span>
+                            <i class="fas fa-check" x-show="miLineaInput === 'General'"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CABECERA COMPACTA -->
+    <header class="p-2.5 bg-panel flex justify-between items-center border-b z-10 shadow-sm flex-shrink-0">
+        <div class="flex flex-col">
+            <div class="flex items-center space-x-2">
+                <span class="bg-yellow-500 text-black font-black px-2 py-0.5 rounded-md text-sm" x-text="miBus"></span>
+                <h1 class="text-lg font-black tracking-tighter italic text-primary">Bus<span class="text-amber-600">Talk</span></h1>
+            </div>
+            <span class="text-[11px] font-black text-sky-600 mt-0.5 uppercase tracking-widest truncate max-w-[170px]" x-text="miLinea"></span>
+        </div>
+        <div class="flex items-center space-x-2">
+            <!-- BOTÓN HYBRID: GPS AUTO / MANUAL -->
+            <button @click="toggleModoGPS()" class="px-2.5 py-1.5 rounded-xl border text-xs font-black transition-all flex items-center gap-1 shadow-sm" 
+                    :class="modoAutoGPS ? 'bg-green-600 text-white border-green-800' : 'bg-gray-700 text-gray-300 border-gray-600'">
+                <i class="fas" :class="modoAutoGPS ? 'fa-satellite' : 'fa-hand-pointer'"></i>
+                <span x-text="modoAutoGPS ? 'GPS AUTO' : 'MANUAL'"></span>
+            </button>
+
+            <!-- medbasha -->
+            <span class="text-[9px] font-mono text-sub border px-1.5 py-0.5 rounded tracking-[0.2em] font-bold">medbasha</span>
+            
+            <button @click="rotarModoColor()" class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-lg border shadow-sm transition-transform active:scale-90" 
+                    :class="modoColor === 'noche' ? 'bg-gray-800 text-yellow-400 border-gray-600' : (modoColor === 'gris' ? 'bg-gray-200 text-gray-900 border-gray-400' : 'bg-amber-100 text-amber-800 border-amber-500')">
+                <i class="fas" :class="modoColor === 'noche' ? 'fa-moon' : (modoColor === 'gris' ? 'fa-sun' : 'fa-sun-plant-wilt')"></i>
+            </button>
+
+            <div class="flex items-center gap-1 bg-card px-2 py-1 rounded-full border">
+                <span class="w-2.5 h-2.5 rounded-full" :class="conectado ? 'bg-green-500 animate-pulse' : 'bg-red-500'"></span>
+            </div>
+            <button @click="cerrarTurno()" class="w-9 h-9 bg-card rounded-full flex items-center justify-center text-sub active:text-red-500 transition-colors border">
+                <i class="fas fa-power-off text-base"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- ESTRUCTURA PRINCIPAL ADAPTATIVA (Modo Apaisado de 2 Columnas Restaurado) -->
+    <div class="flex-1 flex flex-col app-container overflow-hidden">
+
+        <!-- RADAR CENTRAL -->
+        <main class="flex-1 overflow-y-auto p-2.5 space-y-2.5 bg-main hide-scrollbar landscape-radar">
+            <div class="flex justify-between items-end px-1">
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-sub">Radar de Zona</p>
+                <p class="text-xs font-black text-sub" x-text="compañeros.length + ' activos'"></p>
+            </div>
+            
+            <template x-if="compañeros.length === 0 && sesionIniciada">
+                <div class="text-center py-10 opacity-60">
+                    <i class="fas fa-satellite-dish text-6xl mb-3 text-sub"></i>
+                    <p class="font-black text-base uppercase tracking-widest text-sub">Zona despejada</p>
+                </div>
+            </template>
+
+            <template x-for="comp in compañeros" :key="comp.id">
+                <div class="p-3.5 rounded-2xl flex justify-between items-center shadow-md transition-all bg-card"
+                     :class="[
+                        comp.alerta === 'AVERÍA' ? 'alerta-averia' : 
+                        comp.alerta === 'LLENO' ? 'alerta-lleno' : 
+                        comp.alerta === 'RETRASO' ? 'alerta-retraso' : 
+                        (comp.sentido === 'ida' ? 'card-radar-ida' : 'card-radar-vuelta')
+                     ]">
+                    
+                    <div class="flex-1 overflow-hidden pr-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <p class="font-black text-2xl text-primary" x-text="comp.id"></p>
+                            <i x-show="comp.id === elQueHabla" class="fas fa-volume-up text-green-600 animate-pulse text-xl ml-1"></i>
+                            <span x-show="comp.alerta" class="px-2 py-0.5 bg-black/80 text-white rounded text-xs font-black uppercase tracking-widest border border-white/20">
+                                <i class="fas fa-exclamation-triangle text-yellow-400 mr-1"></i><span x-text="comp.alerta"></span>
+                            </span>
+                        </div>
+
+                        <!-- Tramo Corto en Radar con Flecha y Borde Fijo de Destino -->
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <span class="text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-md flex items-center gap-1.5 whitespace-nowrap truncate border bg-panel"
+                                  :class="comp.enParada ? 'luz-parada' : 'border-gray-500'">
+                                <i class="fas" :class="comp.enParada ? 'fa-parking' : 'fa-route'"></i>
+                                
+                                <template x-if="comp.enParada">
+                                    <span class="text-tramo-radar" x-text="comp.ubicacion"></span>
+                                </template>
+
+                                <template x-if="!comp.enParada">
+                                    <span class="text-tramo-radar flex items-center gap-1">
+                                        <span x-text="extraerOrigenTramo(comp.tramo)"></span>
+                                        <i class="fas fa-long-arrow-alt-right text-base flecha-parpadeante" :class="comp.sentido === 'ida' ? 'flecha-ida' : 'flecha-ambar'"></i>
+                                        <span class="px-1 py-0.5 rounded" 
+                                              :class="comp.sentido === 'ida' ? 'borde-parpadeante-rojo' : 'borde-parpadeante-ambar'"
+                                              x-text="extraerDestinoTramo(comp.tramo)"></span>
+                                    </span>
+                                </template>
+                            </span>
+                            
+                            <!-- Tiempo en Ruta o Parado -->
+                            <template x-if="!comp.enParada && comp.eta">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-base font-black whitespace-nowrap text-primary">
+                                        <i class="fas fa-clock mr-0.5"></i><span x-text="calcularMinutos(comp.eta)"></span>m
+                                    </span>
+                                    <button @click="forzarRefrescoCompañero(comp.id)" class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center active:scale-90 transition-transform border border-blue-400 shadow">
+                                        <i class="fas fa-sync-alt text-xs"></i>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <div class="text-right bg-panel px-3.5 py-2 rounded-xl border ml-1 flex-shrink-0">
+                        <p class="text-[9px] uppercase tracking-widest text-sub font-black mb-0.5">Pax</p>
+                        <span :class="obtenerColorPax(comp.pax)" x-text="comp.pax"></span>
+                    </div>
+                </div>
+            </template>
+        </main>
+
+        <!-- PANEL DE CONTROL DEL CONDUCTOR -->
+        <footer class="p-3 bg-panel rounded-t-[2.2rem] landscape-controls shadow-[0_-8px_30px_rgba(0,0,0,0.15)] border-t relative z-20 flex-shrink-0">
+            <div class="flex flex-col items-center max-w-md mx-auto">
+                
+                <!-- ALERTAS -->
+                <div class="w-full flex gap-1.5 mb-2 bg-card p-1.5 rounded-xl border">
+                    <button @click="toggleAlerta('LLENO')" class="flex-1 py-2 rounded-lg text-xs font-black uppercase border active:scale-95 transition-transform" :class="miAlerta === 'LLENO' ? 'bg-orange-600 border-orange-500 text-white' : 'btn-sec'">🔴 Lleno</button>
+                    <button @click="toggleAlerta('RETRASO')" class="flex-1 py-2 rounded-lg text-xs font-black uppercase border active:scale-95 transition-transform" :class="miAlerta === 'RETRASO' ? 'bg-yellow-600 border-yellow-500 text-white' : 'btn-sec'">🟡 Retraso</button>
+                    <button @click="toggleAlerta('AVERÍA')" class="flex-1 py-2 rounded-lg text-xs font-black uppercase border active:scale-95 transition-transform" :class="miAlerta === 'AVERÍA' ? 'bg-red-600 border-red-500 text-white' : 'btn-sec'">🆘 Avería</button>
+                </div>
+
+                <!-- CARRUSEL CON PUNTO PARPADEANTE MÁS GRANDE Y DE ALTO CONTRASTE -->
+                <div class="w-full mb-2 flex items-center gap-2">
+                    <button @click="invertirRuta()" class="w-11 h-11 flex-shrink-0 bg-blue-600 text-white rounded-xl shadow-lg font-black text-lg active:bg-blue-700 transition-transform active:scale-90 flex items-center justify-center">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <div class="flex overflow-x-auto hide-scrollbar gap-1.5 pb-0.5 flex-1 items-center">
+                        <template x-for="(lugar, index) in misParadasArray" :key="lugar">
+                            <div class="flex items-center gap-1 flex-shrink-0">
+                                <button @click="actualizarUbicacion(lugar)" :data-parada="lugar"
+                                        class="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all" 
+                                        :class="[
+                                            miUbicacion === lugar ? (esSentidoIda ? 'btn-ida-rojo shadow-md' : 'btn-vuelta-ambar shadow-md') : 'btn-sec active:bg-gray-300',
+                                            (!enParada && obtenerDestinoSiguiente() === lugar) ? (esSentidoIda ? 'borde-fijo-rojo' : 'borde-fijo-ambar') : ''
+                                        ]" 
+                                        x-text="lugar"></button>
+                                
+                                <!-- Puntito de En Ruta Parpadeante (22px) -->
+                                <template x-if="!enParada && misParadasArray.indexOf(miUbicacion) === index">
+                                    <span class="font-black px-1 leading-none" :class="esSentidoIda ? 'punto-rojo' : 'punto-ambar'">●</span>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- PARADA/RUTA Y PASAJEROS -->
+                <div class="w-full flex gap-2.5 mb-2">
+                    <div class="flex-1 bg-card rounded-2xl border p-2 flex flex-col justify-center transition-all duration-200">
+                        
+                        <button @click="toggleParada()" class="w-full py-4 rounded-xl text-base font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                                :class="enParada ? 'luz-parada' : 'btn-sec'">
+                            <i class="fas" :class="enParada ? 'fa-parking' : 'fa-play'"></i>
+                            <span x-text="enParada ? 'EN PARADA' : 'SALIR / RUTA'"></span>
+                        </button>
+
+                        <!-- Modo SALIR / RUTA: Cuenta Atrás Adaptativa 26px -->
+                        <div x-show="!enParada" class="flex justify-between items-center w-full mt-2 px-2">
+                            <button @click="ajustarMinutos(-1)" class="w-9 h-9 bg-panel rounded-lg text-primary font-black text-lg active:bg-gray-400 flex items-center justify-center border">-</button>
+                            <span class="font-black leading-none" style="font-size: 26px;" 
+                                  :class="minutosRestantes < 0 ? 'text-red-600 animate-pulse' : (modoColor === 'noche' ? 'text-white' : 'text-blue-600')" 
+                                  x-text="formatearMinutosCuentaAtras(minutosRestantes)"></span>
+                            <button @click="ajustarMinutos(1)" class="w-9 h-9 bg-panel rounded-lg text-primary font-black text-lg active:bg-gray-400 flex items-center justify-center border">+</button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 bg-card p-2 rounded-2xl border flex items-center justify-between transition-all duration-200">
+                        <button @mousedown="iniciarPax(-1)" @mouseup="pararPax()" @mouseleave="pararPax()" @touchstart.prevent="iniciarPax(-1)" @touchend.prevent="pararPax()" 
+                                class="w-12 h-16 rounded-xl bg-panel text-2xl flex items-center justify-center active:bg-red-500 transition-colors text-primary border shadow-sm">-</button>
+                        <div class="text-center flex-1">
+                            <p class="text-[9px] uppercase font-black tracking-widest text-sub">PAX</p>
+                            <p :class="obtenerColorPax(miPax)" x-text="miPax"></p>
+                        </div>
+                        <button @mousedown="iniciarPax(1)" @mouseup="pararPax()" @mouseleave="pararPax()" @touchstart.prevent="iniciarPax(1)" @touchend.prevent="pararPax()" 
+                                class="w-12 h-16 rounded-xl bg-panel text-2xl flex items-center justify-center active:bg-green-500 transition-colors text-primary border shadow-sm">+</button>
+                    </div>
+                </div>
+
+                <!-- TIEMPO DETENIDO -->
+                <div class="w-full text-center mb-3">
+                    <span class="text-sm font-black text-tiempo-detenido tracking-wider" 
+                          x-text="enParada ? 'PARADO: ' + formatearTiempoSegundos(segundosEnParadaActual) : 'ÚLT. PARADA: ' + formatearTiempoSegundos(ultimoTiempoParadoCongelado)"></span>
+                </div>
+
+                <!-- BOTONES DE RADIO WEBRTC -->
+                <div class="relative flex items-center justify-between w-full px-1">
+                    <button @click="modoGlobal = !modoGlobal" class="w-16 h-16 rounded-full border-2 flex flex-col items-center justify-center transition-all shadow-md active:scale-95"
+                            :class="modoGlobal ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.7)]' : 'bg-card border-gray-400 text-sub'">
+                        <i class="fas fa-globe-europe text-xl mb-0.5"></i>
+                        <span class="text-[8px] font-black uppercase tracking-tight text-center leading-tight px-0.5" x-text="modoGlobal ? 'GLOBAL ON' : 'GLOBAL OFF'"></span>
+                    </button>
+                    
+                    <button id="btn-ptt"
+                        @click="alternarGrabacionToque()"
+                        class="w-28 h-28 rounded-full flex flex-col items-center justify-center shadow-lg transition-all duration-150 relative z-10"
+                        :class="[
+                            estadoRadio === 'grabando' ? 'ptt-active' : (estadoRadio === 'recibiendo' ? 'ptt-receiving' : 'bg-yellow-500'),
+                            modoGlobal && estadoRadio !== 'recibiendo' ? 'border-4 border-blue-500' : ''
+                        ]">
+                        <i class="fas text-3xl mb-1 text-black" :class="estadoRadio === 'recibiendo' ? 'fa-volume-up' : 'fa-microphone'"></i>
+                        <template x-if="estadoRadio === 'reposo'"><span class="text-black font-black text-[10px] tracking-widest" x-text="modoGlobal ? 'AVISO TODOS' : 'TOCAR HABLAR'"></span></template>
+                        <template x-if="estadoRadio === 'grabando'"><span class="text-black font-black text-[10px] tracking-widest">TOCAR ENVIAR</span></template>
+                        <template x-if="estadoRadio === 'recibiendo'">
+                            <div class="flex flex-col items-center leading-none">
+                                <span class="text-black font-black text-xs tracking-widest" x-text="elQueHabla"></span>
+                                <span class="text-black/80 font-black text-[8px] mt-0.5 truncate max-w-[85px]" x-text="lineaQueHabla"></span>
+                            </div>
+                        </template>
+                    </button>
+
+                    <button @click="repetirUltimoAudio()" class="w-16 h-16 rounded-full border-2 flex flex-col items-center justify-center transition-colors shadow-md active:scale-95"
+                            :class="ultimoAudio ? 'bg-emerald-600 border-emerald-400 text-white active:bg-emerald-700' : 'bg-card border-gray-400 text-sub opacity-50 cursor-not-allowed'">
+                        <i class="fas fa-redo text-lg mb-0.5"></i>
+                        <span class="text-[8px] font-black tracking-widest">REPETIR</span>
+                    </button>
+                </div>
+                
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7b6_T0ze2HgXiYHfvUeL12JSXE7ZKogc",
+            authDomain: "misturnos-fe3ea.firebaseapp.com",
+            databaseURL: "https://misturnos-fe3ea-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "misturnos-fe3ea",
+            storageBucket: "misturnos-fe3ea.firebasestorage.app",
+            messagingSenderId: "1029095925443",
+            appId: "1:1029095925443:web:873240d85ac5160f392476"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // INDEXED DB HELPER (Regla de Oro de Base de Datos - medbasha)
+        const idb = {
+            db: null,
+            async init() {
+                if(this.db) return this.db;
+                return new Promise((resolve, reject) => {
+                    const req = indexedDB.open("BusTalkDB", 1);
+                    req.onupgradeneeded = e => e.target.result.createObjectStore("settings");
+                    req.onsuccess = e => { this.db = e.target.result; resolve(this.db); };
+                    req.onerror = e => reject(e.target.error);
+                });
+            },
+            async get(key) {
+                const db = await this.init();
+                return new Promise(resolve => {
+                    const tx = db.transaction("settings", "readonly");
+                    const req = tx.objectStore("settings").get(key);
+                    req.onsuccess = () => resolve(req.result); req.onerror = () => resolve(null);
+                });
+            },
+            async set(key, val) {
+                const db = await this.init();
+                return new Promise(resolve => {
+                    const tx = db.transaction("settings", "readwrite");
+                    tx.objectStore("settings").put(val, key);
+                    tx.oncomplete = () => resolve();
+                });
+            },
+            async remove(key) {
+                const db = await this.init();
+                return new Promise(resolve => {
+                    const tx = db.transaction("settings", "readwrite");
+                    tx.objectStore("settings").delete(key);
+                    tx.oncomplete = () => resolve();
+                });
+            }
+        };
+
+        function busTalkApp() {
+            return {
+                sesionIniciada: false, conectado: false, wakeLockStatus: null,
+                miBusInput: '', miLineaInput: '', 
+                miBus: '', miLinea: '', miPax: 0, miUbicacion: '',
+                enParada: true, minutosRuta: 15, minutosRestantes: 15, etaFinal: null, miAlerta: null,
+                miTramoActual: '', esSentidoIda: true,
+                segundosEnParadaActual: 0, inicioParadaTimestamp: Date.now(),
+                acumuladoParadasTrayecto: 0, ultimoTiempoParadoCongelado: 0, acumuladoRetrasoTráfico: 0,
+                compañeros:[], misParadasArray:[],
+                mostrarModalZonas: false, abrirPoniente: false, abrirLevante: false,
+                modoColor: 'noche', mostrarAvisoApagarRadio: false, mostrarAvisoFinalRuta: false,
+                
+                // MODO HYBRID Y GEOFENCING GPS
+                modoAutoGPS: true, gpsActivo: false, coordsTexto: '',
+                coordenadasParadas: {
+                    "Plaça de la Pau": { lat: 40.0011, lng: 3.8361 },
+                    "Ciu": { lat: 40.0011, lng: 3.8361 },
+                    "Ferr": { lat: 39.9801, lng: 3.9812 },
+                    "Mer": { lat: 39.9785, lng: 4.0910 },
+                    "Alaior C.": { lat: 39.9333, lng: 4.1402 },
+                    "Alaior P.": { lat: 39.9310, lng: 4.1435 },
+                    "Argen": { lat: 39.8988, lng: 4.2010 },
+                    "Maó": { lat: 39.8885, lng: 4.2658 },
+                    "Fontanilles": { lat: 39.8840, lng: 4.2750 },
+                    "Castell": { lat: 39.8801, lng: 4.2852 },
+                    "H. Mateu Orfila": { lat: 39.8830, lng: 4.2580 },
+                    "S. Lluís": { lat: 39.8510, lng: 4.2585 },
+                    "S. Climent": { lat: 39.8650, lng: 4.2150 },
+                    "Canutells": { lat: 39.8520, lng: 4.1680 },
+                    "C. Porter": { lat: 39.8710, lng: 4.1320 },
+                    "S'Algar": { lat: 39.8310, lng: 4.2910 },
+                    "Alcaufar": { lat: 39.8280, lng: 4.2860 },
+                    "P. Prima": { lat: 39.8140, lng: 4.2800 },
+                    "Binibèquer": { lat: 39.8180, lng: 4.2380 }
+                },
+
+                estadoRadio: 'reposo', elQueHabla: null, lineaQueHabla: '',
+                mediaRecorder: null, chunks:[], streamingMsgId: null, ultimoAudio: null,
+                relojUI: null, modoGlobal: false, intervaloPax: null, watchdogRadio: null,
+                unsubBuses: null, unsubRadio: null, intervalRelojRuta: null,
+                streamActivo: null, temporizadorSeguridadMic: null,
+                
+                ultimoAvisoParadaSegs: 0,
+
+                async init() {
+                    if (navigator.storage && navigator.storage.persist) {
+                        navigator.storage.persist();
+                    }
+                    const busGuardado = await idb.get('bustalk_bus');
+                    const lineaGuardada = await idb.get('bustalk_linea');
+                    const modoGuardado = await idb.get('bustalk_modo_color_v2');
+                    
+                    if (busGuardado) {
+                        this.miBusInput = busGuardado;
+                        this.procesarInputBus();
+                    }
+                    if (lineaGuardada) this.miLineaInput = lineaGuardada;
+                    if (modoGuardado) this.modoColor = modoGuardado;
+                    
+                    this.relojUI = setInterval(() => { this.compañeros = [...this.compañeros]; }, 1000);
+                    
+                    this.intervalRelojRuta = setInterval(() => {
+                        if (!this.enParada && this.etaFinal) {
+                            let antes = this.minutosRestantes;
+                            this.minutosRestantes = Math.ceil((this.etaFinal - Date.now()) / 60000);
+                            
+                            if (antes > 0 && this.minutosRestantes <= 0) {
+                                this.playAudioAviso('llegada');
+                            }
+                        }
+                    }, 1000);
+
+                    setInterval(() => {
+                        if (this.enParada && this.sesionIniciada) {
+                            this.segundosEnParadaActual = Math.floor((Date.now() - this.inicioParadaTimestamp) / 1000);
+                            
+                            let idx = this.misParadasArray.indexOf(this.miUbicacion);
+                            let esExtremo = (idx === 0 || idx === this.misParadasArray.length - 1);
+
+                            if (esExtremo) {
+                                if (this.segundosEnParadaActual >= 180 && !this.mostrarAvisoApagarRadio && !this.mostrarAvisoFinalRuta) {
+                                    this.mostrarAvisoApagarRadio = true;
+                                    this.playAudioAviso('cierre_mic');
+                                }
+                            } else {
+                                this.mostrarAvisoApagarRadio = false;
+                                
+                                if (this.segundosEnParadaActual >= 150 && this.ultimoAvisoParadaSegs < 150) {
+                                    this.playAudioAviso('aviso_parada_suave');
+                                    this.ultimoAvisoParadaSegs = 150;
+                                } 
+                                else if (this.segundosEnParadaActual >= 240 && (this.segundosEnParadaActual - 150) % 90 === 0 && this.segundosEnParadaActual > this.ultimoAvisoParadaSegs) {
+                                    this.playAudioAviso('aviso_parada_fuerte');
+                                    this.ultimoAvisoParadaSegs = this.segundosEnParadaActual;
+                                }
+                            }
+                        } else {
+                            this.mostrarAvisoApagarRadio = false;
+                        }
+                    }, 1000);
+
+                    window.addEventListener('pagehide', () => {
+                        if (this.sesionIniciada && this.conectado) {
+                            this.limpiarSesionEnBD();
+                        }
+                    });
+
+                    this.iniciarGPSGeofencing();
+                },
+
+                toggleModoGPS() {
+                    this.modoAutoGPS = !this.modoAutoGPS;
+                    if ("vibrate" in navigator) navigator.vibrate(50);
+                },
+
+                iniciarGPSGeofencing() {
+                    if ("geolocation" in navigator) {
+                        navigator.geolocation.watchPosition(
+                            (pos) => {
+                                this.gpsActivo = true;
+                                let lat = pos.coords.latitude;
+                                let lng = pos.coords.longitude;
+                                let speedKmh = pos.coords.speed ? (pos.coords.speed * 3.6) : 0;
+                                
+                                if (this.modoAutoGPS && this.sesionIniciada) {
+                                    this.comprobarLlegadaMarquesina(lat, lng);
+                                    this.comprobarSalidaAuto(speedKmh);
+                                }
+                            },
+                            (err) => { this.gpsActivo = false; },
+                            { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+                        );
+                    }
+                },
+
+                comprobarLlegadaMarquesina(lat, lng) {
+                    for (let parada in this.coordenadasParadas) {
+                        let coords = this.coordenadasParadas[parada];
+                        let dist = this.calcularDistanciaMetros(lat, lng, coords.lat, coords.lng);
+                        
+                        if (dist < 50 && this.misParadasArray.includes(parada) && this.miUbicacion !== parada) {
+                            this.actualizarUbicacion(parada);
+                        }
+                    }
+                },
+
+                comprobarSalidaAuto(velocidadKmh) {
+                    if (this.enParada && velocidadKmh > 15) {
+                        this.toggleParada();
+                    }
+                },
+
+                calcularDistanciaMetros(lat1, lon1, lat2, lon2) {
+                    const R = 6371e3;
+                    const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+                    const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+                    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+                    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                },
+
+                procesarInputBus() {
+                    const txt = this.miBusInput.trim().toUpperCase();
+                    if (!txt) return;
+
+                    const mapaServicios = {
+                        "L01": "L01 (Ciu - Maó)", "L1": "L01 (Ciu - Maó)",
+                        "L14": "L14 Exprés (Ciu - Maó)",
+                        "L02": "L02 (Maó - Castell)", "L2": "L02 (Maó - Castell)",
+                        "L03": "L03 (Maó - S. Lluís)", "L3": "L03 (Maó - S. Lluís)",
+                        "L21": "L21 (Maó - S. Climent)",
+                        "L22": "L22 (Maó - Canutells)",
+                        "L31": "L31 (Maó - C. Porter)",
+                        "L08": "L08 (Maó - C. Porter)", "L8": "L08 (Maó - C. Porter)",
+                        "L91": "L91 (Maó - S'Algar)",
+                        "L92": "L92 (Maó - P. Prima)",
+                        "L93": "L93 (Maó - Binibèquer)",
+                        "L71": "Línea Maó - S. Tomàs",
+                        "L72": "Línea Ciu - S. Tomàs",
+                        "L51": "Línea Maó - Galdana",
+                        "L52": "Línea Ciu - Galdana",
+                        "L32": "Línea Maó - Son Bou"
+                    };
+
+                    const limpia = txt.replace(/\s+/g, '');
+                    if (mapaServicios[limpia]) {
+                        this.miLineaInput = mapaServicios[limpia];
+                    }
+                },
+
+                seleccionarLineaModal(linea) {
+                    this.miLineaInput = linea;
+                    this.mostrarModalZonas = false;
+
+                    const mapaInverso = {
+                        "L01 (Ciu - Maó)": "L01",
+                        "L01 (Maó - Ciu)": "L01",
+                        "L14 Exprés (Ciu - Maó)": "L14",
+                        "L14 Exprés (Maó - Ciu)": "L14",
+                        "L02 (Maó - Castell)": "L02",
+                        "L03 (Maó - S. Lluís)": "L03",
+                        "L21 (Maó - S. Climent)": "L21",
+                        "L22 (Maó - Canutells)": "L22",
+                        "L31 (Maó - C. Porter)": "L31",
+                        "L08 (Maó - C. Porter)": "L08",
+                        "L91 (Maó - S'Algar)": "L91",
+                        "L92 (Maó - P. Prima)": "L92",
+                        "L93 (Maó - Binibèquer)": "L93",
+                        "Línea Maó - S. Tomàs": "L71",
+                        "Línea Ciu - S. Tomàs": "L72",
+                        "Línea Maó - Galdana": "L51",
+                        "Línea Ciu - Galdana": "L52",
+                        "Línea Maó - Son Bou": "L32"
+                    };
+
+                    if (mapaInverso[linea]) {
+                        this.miBusInput = mapaInverso[linea];
+                    }
+                },
+
+                limpiarSesionEnBD() {
+                    if (this.miBus) {
+                        db.collection("bustalk_buses").doc(this.miBus).delete();
+                    }
+                },
+
+                rotarModoColor() {
+                    if (this.modoColor === 'noche') this.modoColor = 'gris';
+                    else if (this.modoColor === 'gris') this.modoColor = 'crema';
+                    else this.modoColor = 'noche';
+                    
+                    idb.set('bustalk_modo_color_v2', this.modoColor);
+                },
+
+                obtenerClaseModo() {
+                    if (this.modoColor === 'gris') return 'modo-dia-gris';
+                    if (this.modoColor === 'crema') return 'modo-dia-crema';
+                    return 'modo-noche';
+                },
+
+                obtenerColorPax(cantidad) {
+                    if (cantidad >= 75) return 'pax-limite';
+                    if (cantidad >= 50) return 'pax-lleno';
+                    return 'pax-verde-intenso';
+                },
+
+                formatearMinutosCuentaAtras(m) {
+                    return `${m}m`;
+                },
+
+                extraerOrigenTramo(tramo) {
+                    if (!tramo) return '';
+                    let partes = tramo.replace(/^De\s+/i, '').split(/\s+a\s+/i);
+                    return partes[0] || tramo;
+                },
+
+                extraerDestinoTramo(tramo) {
+                    if (!tramo) return '';
+                    let partes = tramo.replace(/^De\s+/i, '').split(/\s+a\s+/i);
+                    return partes[1] || '';
+                },
+
+                obtenerDestinoSiguiente() {
+                    let idx = this.misParadasArray.indexOf(this.miUbicacion);
+                    if (idx !== -1 && idx < this.misParadasArray.length - 1) {
+                        return this.misParadasArray[idx + 1];
+                    }
+                    return '';
+                },
+
+                cargarParadas() {
+                    const diccionario = {
+                        "L01 (Ciu - Maó)": ["Ciu", "Ferr", "Mer", "Alaior C.", "Alaior P.", "Argen", "Maó"],
+                        "L01 (Maó - Ciu)": ["Maó", "Argen", "Alaior P.", "Alaior C.", "Mer", "Ferr", "Ciu"],
+                        "L14 Exprés (Ciu - Maó)": ["Ciu", "Maó"],
+                        "L14 Exprés (Maó - Ciu)": ["Maó", "Ciu"],
+                        "L02 (Maó - Castell)": ["Maó", "Fontanilles", "Castell"],
+                        "L03 (Maó - S. Lluís)": ["Maó", "H. Mateu Orfila", "S. Lluís"],
+                        "L21 (Maó - S. Climent)": ["Maó", "S. Climent"],
+                        "L22 (Maó - Canutells)": ["Maó", "S. Climent", "Canutells"],
+                        "L31 (Maó - C. Porter)": ["Maó", "Alaior P.", "Alaior C.", "C. Porter"],
+                        "L08 (Maó - C. Porter)": ["Maó", "S. Climent", "C. Porter"],
+                        "L91 (Maó - S'Algar)": ["Maó", "S. Lluís", "S'Algar", "Alcaufar"],
+                        "L92 (Maó - P. Prima)": ["Maó", "S. Lluís", "P. Prima"],
+                        "L93 (Maó - Binibèquer)": ["Maó", "S. Lluís", "Binibèquer"],
+                        "Línea Ciu - Galdana": ["Ciu", "Ferr", "Galdana"],
+                        "Línea Maó - Galdana": ["Maó", "Argen", "Alaior P.", "Alaior C.", "Mer", "Ferr", "Galdana"],
+                        /* SANTO TOMÁS: TRAYECTO TERMINA EN 1ª PARADA */
+                        "Línea Ciu - S. Tomàs": ["Ciu", "Ferr", "Mer", "Migjorn", "S. Tomàs 1ª"],
+                        "Línea Maó - S. Tomàs": ["Maó", "Argen", "Alaior P.", "Alaior C.", "Migjorn", "S. Tomàs 1ª"],
+                        "Línea Maó - Son Bou": ["Maó", "Argen", "Alaior P.", "Alaior C.", "Son Bou"],
+                        "Zona Maó y Levante": ["Maó", "Castell", "S.Lluís", "P.Prima", "S'Algar", "Canutells", "Mesquida", "C.Porter", "Binisafúller", "Binibèquer", "Alcaufar", "Trebalúger", "Bintaufa", "S.Climent"],
+                        "Zona Centro y Poniente": ["Ciu", "Ferr", "Mer", "Alaior C.", "Migjorn", "S. Tomàs 1ª", "Son Bou", "Galdana"]
+                    };
+                    let paradas = diccionario[this.miLinea] || ["Ciu", "Ferr", "Mer", "Alaior C.", "Alaior P.", "Argen", "Maó"];
+                    this.misParadasArray = paradas;
+                    this.miUbicacion = paradas[0];
+                    this.evaluarSentidoIda();
+                },
+
+                evaluarSentidoIda() {
+                    if (this.misParadasArray.length > 0) {
+                        const origen = this.misParadasArray[0];
+                        const destino = this.misParadasArray[this.misParadasArray.length - 1];
+
+                        if ((origen === 'Maó' && destino === 'Ciu') || (origen === 'Maó' && destino.includes('Ciu'))) {
+                            this.esSentidoIda = true;
+                        } else if ((origen === 'Ciu' && destino === 'Maó') || (origen === 'Ciu' && destino.includes('Maó'))) {
+                            this.esSentidoIda = false;
+                        } else if (origen === 'Maó') {
+                            this.esSentidoIda = true;
+                        } else {
+                            this.esSentidoIda = false;
+                        }
+                    }
+                },
+
+                obtenerTiempoTramo(origen, destino) {
+                    const tiempos = {
+                        "Ciu-Ferr": 20, "Ferr-Mer": 10, "Mer-Alaior C.": 10, "Alaior C.-Alaior P.": 3, "Alaior P.-Argen": 5, "Argen-Maó": 12,
+                        "Maó-Argen": 12, "Argen-Alaior P.": 5, "Alaior P.-Alaior C.": 3, "Alaior C.-Mer": 10, "Mer-Ferr": 10, "Ferr-Ciu": 20,
+                        "Ciu-Maó": 45, "Maó-Ciu": 45,
+                        "Maó-Fontanilles": 5, "Fontanilles-Castell": 5, "Castell-Fontanilles": 5, "Fontanilles-Maó": 5,
+                        "Maó-H. Mateu Orfila": 6, "H. Mateu Orfila-S. Lluís": 6, "S. Lluís-H. Mateu Orfila": 6, "H. Mateu Orfila-Maó": 6,
+                        "Maó-S. Climent": 8, "S. Climent-Maó": 8,
+                        "S. Climent-Canutells": 7, "Canutells-S. Climent": 7,
+                        "Maó-Alaior P.": 12, "Alaior C.-C. Porter": 13, "C. Porter-Alaior C.": 13,
+                        "Maó-S. Climent": 8, "S. Climent-C. Porter": 12, "C. Porter-S. Climent": 12,
+                        "Maó-S. Lluís": 8, "S. Lluís-S'Algar": 7, "S'Algar-Alcaufar": 3, "Alcaufar-S'Algar": 3, "S'Algar-S. Lluís": 7, "S. Lluís-Maó": 8,
+                        "S. Lluís-P. Prima": 7, "P. Prima-S. Lluís": 7,
+                        "S. Lluís-Binibèquer": 10, "Binibèquer-S. Lluís": 10,
+                        "Ferr-Galdana": 11, "Galdana-Ferr": 11,
+                        "Mer-Migjorn": 12, "Migjorn-Mer": 12,
+                        "Migjorn-S. Tomàs 1ª": 8, 
+                        "S. Tomàs 1ª-Migjorn": 8,
+                        "Alaior C.-Migjorn": 12, "Migjorn-Alaior C.": 12,
+                        "Alaior C.-Son Bou": 20, "Son Bou-Alaior C.": 20
+                    };
+                    return tiempos[`${origen}-${destino}`] || 10;
+                },
+
+                esMismaZona(lineaA, lineaB) {
+                    if (lineaA === 'General' || lineaB === 'General') return true;
+                    
+                    const esL01_A = lineaA.includes('L01');
+                    const esL01_B = lineaB.includes('L01');
+                    if (esL01_A && esL01_B) return true;
+
+                    const esL14_A = lineaA.includes('L14');
+                    const esL14_B = lineaB.includes('L14');
+                    if (esL14_A && esL14_B) return true;
+
+                    if (lineaA === lineaB) return true;
+                    
+                    const poniente = ["Zona Centro y Poniente", "Línea Ciu - Galdana", "Línea Maó - Galdana", "Línea Ciu - S. Tomàs", "Línea Maó - S. Tomàs", "Línea Maó - Son Bou", "L01 (Ciu - Maó)", "L01 (Maó - Ciu)"];
+                    if (poniente.includes(lineaA) && poniente.includes(lineaB)) return true;
+                    
+                    const levante = ["Zona Maó y Levante", "L02 (Maó - Castell)", "L03 (Maó - S. Lluís)", "L21 (Maó - S. Climent)", "L22 (Maó - Canutells)", "L31 (Maó - C. Porter)", "L08 (Maó - C. Porter)", "L91 (Maó - S'Algar)", "L92 (Maó - P. Prima)", "L93 (Maó - Binibèquer)"];
+                    if (levante.includes(lineaA) && levante.includes(lineaB)) return true;
+                    
+                    return false;
+                },
+
+                invertirRuta() {
+                    const totalSecsParadas = this.acumuladoParadasTrayecto;
+                    const totalMinTráfico = this.acumuladoRetrasoTráfico;
+                    if (totalSecsParadas > 0 || totalMinTráfico > 0) {
+                        alert(`⏱️ RESUMEN DE TRAYECTO:\n- T. Parado Intermedio: ${this.formatearTiempoSegundos(totalSecsParadas)}\n- Retraso por Tráfico: ${totalMinTráfico} min`);
+                    }
+
+                    this.misParadasArray = this.misParadasArray.slice().reverse();
+                    this.miUbicacion = this.misParadasArray[0];
+                    this.evaluarSentidoIda();
+                    
+                    this.segundosEnParadaActual = 0;
+                    this.ultimoAvisoParadaSegs = 0;
+                    this.acumuladoParadasTrayecto = 0;
+                    this.acumuladoRetrasoTráfico = 0;
+                    this.ultimoTiempoParadoCongelado = 0;
+                    this.inicioParadaTimestamp = Date.now();
+                    this.mostrarAvisoApagarRadio = false;
+
+                    if ("vibrate" in navigator) navigator.vibrate(50);
+                    this.$nextTick(() => {
+                        const el = document.querySelector(`[data-parada="${this.miUbicacion}"]`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    });
+                    this.actualizarMiEstadoBD();
+                },
+
+                async mantenerPantallaDespierta() {
+                    if ('wakeLock' in navigator) {
+                        try { this.wakeLockStatus = await navigator.wakeLock.request('screen'); } catch (err) {}
+                    }
+                },
+
+                iniciarTurno() {
+                    const busNormalizado = this.miBusInput.trim().toUpperCase();
+                    if (!busNormalizado || busNormalizado === '') { 
+                        alert("Por favor, introduce el servicio de tu autobús."); 
+                        return; 
+                    }
+                    if (!busNormalizado.startsWith('L') && busNormalizado !== 'ESCOLAR' && busNormalizado !== 'DISCRECIONAL') {
+                        alert("⚠️ Atención: Debes incluir la letra 'L' en el número de servicio (Ejemplo: L01, L02, L03, L08, L21, L22, L31, L91, L92, L93).");
+                        return;
+                    }
+                    if (!this.miLineaInput || this.miLineaInput.trim() === '') { 
+                        alert("Por favor, selecciona una línea o zona."); 
+                        return; 
+                    }
+                    
+                    navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: false, 
+                            autoGainControl: true,
+                            sampleRate: 44100
+                        } 
+                    }).then(stream => {
+                        stream.getTracks().forEach(track => track.stop());
+                        
+                        this.miBus = busNormalizado;
+                        this.miLinea = this.miLineaInput;
+                        
+                        this.cargarParadas();
+
+                        idb.set('bustalk_bus', this.miBus);
+                        idb.set('bustalk_linea', this.miLinea);
+                        this.sesionIniciada = true;
+
+                        this.mantenerPantallaDespierta();
+                        
+                        document.addEventListener('visibilitychange', () => {
+                            if (document.visibilityState === 'visible') {
+                                this.mantenerPantallaDespierta();
+                                if (this.conectado) this.actualizarMiEstadoBD();
+                            }
+                        });
+
+                        this.playAudioAviso('local');
+
+                        auth.signInAnonymously().then(() => {
+                            this.conectado = true;
+                            this.inicioParadaTimestamp = Date.now();
+                            this.actualizarMiEstadoBD();
+
+                            this.unsubBuses = db.collection("bustalk_buses").onSnapshot(snap => {
+                                const lista = [];
+                                snap.forEach(doc => {
+                                    const data = doc.data();
+                                    if (doc.id !== this.miBus) {
+                                        if (this.esMismaZona(this.miLinea, data.linea)) {
+                                            if (data.timestamp > Date.now() - (2 * 60 * 60 * 1000)) {
+                                                lista.push({ id: doc.id, ...data });
+                                            }
+                                        }
+                                    }
+                                });
+                                this.compañeros = lista.sort((a, b) => b.pax - a.pax);
+                            });
+
+                            this.unsubRadio = db.collection("bustalk_radio").orderBy("timestamp", "desc").limit(20)
+                                .onSnapshot(snap => {
+                                    if (snap.empty) return;
+                                    
+                                    for (let i = 0; i < snap.docs.length; i++) {
+                                        const data = snap.docs[i].data();
+                                        const mLinea = data.linea || '';
+                                        if (this.esMismaZona(this.miLinea, mLinea)) {
+                                            this.ultimoAudio = data.audioBase64;
+                                            break; 
+                                        }
+                                    }
+
+                                    const msg = snap.docs[0].data();
+                                    const msgId = snap.docs[0].id;
+                                    const mLineaRadio = msg.linea || '';
+                                    
+                                    if (msg.bus !== this.miBus && this.streamingMsgId !== msgId) {
+                                        if (this.esMismaZona(this.miLinea, mLineaRadio)) {
+                                            this.streamingMsgId = msgId;
+                                            this.reproducirMensaje(msg.audioBase64, msg.bus, msg.linea);
+                                        }
+                                    }
+                                });
+                        }).catch((error) => { 
+                            this.conectado = false; this.sesionIniciada = false;
+                            alert("❌ Error: " + error.message); 
+                        });
+
+                    }).catch(err => {
+                        alert("⚠️ Permiso Denegado: Debes permitir el acceso al micrófono de tu dispositivo para usar BusTalk en la ruta.");
+                    });
+                },
+
+                cerrarTurno() {
+                    if(confirm("¿Apagar la radio y salir del turno?")) {
+                        if(this.unsubBuses) this.unsubBuses();
+                        if(this.unsubRadio) this.unsubRadio();
+                        this.limpiarSesionEnBD();
+                        idb.remove('bustalk_bus');
+                        idb.remove('bustalk_linea');
+                        location.reload();
+                    }
+                },
+
+                iniciarPax(valor) {
+                    this.cambiarPasajerosUnico(valor);
+                    this.intervaloPax = setInterval(() => { this.cambiarPasajerosUnico(valor); }, 150);
+                },
+                cambiarPasajerosUnico(valor) {
+                    this.miPax = Math.max(0, this.miPax + valor);
+                    if ("vibrate" in navigator) navigator.vibrate(10);
+                },
+                pararPax() {
+                    if(this.intervaloPax) {
+                        clearInterval(this.intervaloPax);
+                        this.intervaloPax = null;
+                        this.actualizarMiEstadoBD();
+                    }
+                },
+
+                actualizarUbicacion(lugar) {
+                    let idxPrevio = this.misParadasArray.indexOf(this.miUbicacion);
+                    let esIntermedia = (idxPrevio > 0 && idxPrevio < this.misParadasArray.length - 1);
+                    
+                    if (this.enParada && esIntermedia) {
+                        this.acumuladoParadasTrayecto += this.segundosEnParadaActual;
+                    }
+                    
+                    this.miUbicacion = lugar; 
+                    this.enParada = true; 
+                    this.etaFinal = null; 
+                    this.miTramoActual = '';
+                    this.segundosEnParadaActual = 0;
+                    this.ultimoAvisoParadaSegs = 0;
+                    this.inicioParadaTimestamp = Date.now();
+                    this.mostrarAvisoApagarRadio = false;
+                    this.verificarFinalRuta();
+                    this.actualizarMiEstadoBD();
+                    
+                    this.$nextTick(() => {
+                        const el = document.querySelector(`[data-parada="${this.miUbicacion}"]`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    });
+                    
+                    if ("vibrate" in navigator) navigator.vibrate(50);
+                },
+
+                toggleParada() {
+                    let idx = this.misParadasArray.indexOf(this.miUbicacion);
+                    let esIntermedia = (idx > 0 && idx < this.misParadasArray.length - 1);
+
+                    if (this.enParada) {
+                        this.enParada = false;
+                        this.mostrarAvisoApagarRadio = false;
+                        this.mostrarAvisoFinalRuta = false;
+                        
+                        this.ultimoTiempoParadoCongelado = this.segundosEnParadaActual;
+                        if (esIntermedia) {
+                            this.acumuladoParadasTrayecto += this.segundosEnParadaActual;
+                        }
+
+                        if (idx !== -1 && idx < this.misParadasArray.length - 1) {
+                            let siguiente = this.misParadasArray[idx + 1];
+                            this.minutosRuta = this.obtenerTiempoTramo(this.miUbicacion, siguiente);
+                            this.miTramoActual = `De ${this.miUbicacion} a ${siguiente}`;
+                        } else {
+                            this.miTramoActual = `En ruta desde ${this.miUbicacion}`;
+                        }
+                        
+                        this.etaFinal = Date.now() + (this.minutosRuta * 60 * 1000);
+                        this.minutosRestantes = this.minutosRuta;
+                        
+                    } else {
+                        if (this.minutosRestantes < 0) {
+                            this.acumuladoRetrasoTráfico += Math.abs(this.minutosRestantes);
+                        }
+
+                        this.enParada = true;
+                        this.etaFinal = null;
+                        this.miTramoActual = '';
+                        this.segundosEnParadaActual = 0;
+                        this.ultimoAvisoParadaSegs = 0;
+                        this.inicioParadaTimestamp = Date.now();
+                        
+                        if (idx !== -1 && idx < this.misParadasArray.length - 1) {
+                            this.miUbicacion = this.misParadasArray[idx + 1];
+                            this.playAudioAviso('salto');
+                            
+                            this.$nextTick(() => {
+                                const el = document.querySelector(`[data-parada="${this.miUbicacion}"]`);
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                            });
+                        }
+                        this.verificarFinalRuta();
+                    }
+                    
+                    this.actualizarMiEstadoBD();
+                    if ("vibrate" in navigator) navigator.vibrate(50);
+                },
+
+                verificarFinalRuta() {
+                    let idx = this.misParadasArray.indexOf(this.miUbicacion);
+                    if (idx === this.misParadasArray.length - 1 && this.enParada) {
+                        this.mostrarAvisoFinalRuta = true;
+                    }
+                },
+
+                aceptarCambioSentido() {
+                    this.mostrarAvisoFinalRuta = false;
+                    this.invertirRuta();
+                },
+
+                formatearTiempoSegundos(seg) {
+                    if (!seg || seg < 0) seg = 0;
+                    const m = Math.floor(seg / 60);
+                    const s = seg % 60;
+                    return `${m < 10 ? '0' : ''}${m}m ${s < 10 ? '0' : ''}${s}s`;
+                },
+
+                forzarRefrescoCompañero(idBus) {
+                    db.collection("bustalk_buses").doc(idBus).get().then(doc => {
+                        if (doc.exists) {
+                            const data = doc.data();
+                            const idx = this.compañeros.findIndex(c => c.id === idBus);
+                            if (idx !== -1) {
+                                this.compañeros[idx] = { id: idBus, ...data };
+                                this.compañeros = [...this.compañeros];
+                            }
+                        }
+                    });
+                    if ("vibrate" in navigator) navigator.vibrate(30);
+                },
+
+                ajustarMinutos(val) {
+                    if (!this.enParada && this.etaFinal) {
+                        this.etaFinal += (val * 60000);
+                        this.minutosRestantes = Math.ceil((this.etaFinal - Date.now()) / 60000);
+                    }
+                    this.actualizarMiEstadoBD();
+                },
+
+                toggleAlerta(tipo) {
+                    if (this.miAlerta === tipo) this.miAlerta = null; 
+                    else this.miAlerta = tipo; 
+                    this.actualizarMiEstadoBD();
+                    if ("vibrate" in navigator) navigator.vibrate(50);
+                },
+
+                actualizarMiEstadoBD() {
+                    if(!this.conectado) return;
+                    db.collection("bustalk_buses").doc(this.miBus).set({
+                        linea: this.miLinea, pax: this.miPax, ubicacion: this.miUbicacion,
+                        enParada: this.enParada, tramo: this.miTramoActual, 
+                        sentido: this.esSentidoIda ? 'ida' : 'vuelta', 
+                        eta: this.etaFinal, alerta: this.miAlerta, timestamp: Date.now()
+                    });
+                },
+
+                calcularMinutos(etaMs) {
+                    if(!etaMs) return 0;
+                    const diff = etaMs - Date.now();
+                    return Math.max(0, Math.ceil(diff / 60000));
+                },
+
+                alternarGrabacionToque() {
+                    if (this.estadoRadio === 'recibiendo') return;
+
+                    if (this.estadoRadio === 'reposo') {
+                        navigator.mediaDevices.getUserMedia({ 
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: false, 
+                                autoGainControl: true,
+                                sampleRate: 44100
+                            } 
+                        }).then(stream => {
+                            this.streamActivo = stream;
+                            this.estadoRadio = 'grabando';
+                            if ("vibrate" in navigator) navigator.vibrate(100); 
+
+                            this.chunks = [];
+                            this.mediaRecorder = new MediaRecorder(stream);
+                            this.mediaRecorder.ondataavailable = e => { this.chunks.push(e.data); };
+
+                            /* CORTE DEL MICRÓFONO AJUSTADO A 10 SEGUNDOS EXACATOS */
+                            clearTimeout(this.temporizadorSeguridadMic);
+                            this.temporizadorSeguridadMic = setTimeout(() => {
+                                if (this.estadoRadio === 'grabando') {
+                                    this.playAudioAviso('cierre_mic');
+                                    this.alternarGrabacionToque();
+                                }
+                            }, 10000);
+
+                            this.mediaRecorder.onstop = async () => {
+                                clearTimeout(this.temporizadorSeguridadMic);
+                                const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
+                                const base64Audio = await this.blobToBase64(audioBlob);
+
+                                const canalEnvio = this.modoGlobal ? 'General' : this.miLinea;
+
+                                db.collection("bustalk_radio").add({
+                                    bus: this.miBus, linea: canalEnvio,
+                                    audioBase64: base64Audio, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                                });
+                                
+                                if (this.streamActivo) {
+                                    this.streamActivo.getTracks().forEach(track => track.stop());
+                                    this.streamActivo = null;
+                                }
+                                
+                                if (this.modoGlobal) this.modoGlobal = false;
+                            };
+                            this.mediaRecorder.start();
+                        }).catch(err => { alert("Micrófono no disponible."); });
+
+                    } else if (this.estadoRadio === 'grabando') {
+                        clearTimeout(this.temporizadorSeguridadMic);
+                        if (this.mediaRecorder) {
+                            this.mediaRecorder.stop();
+                            this.estadoRadio = 'reposo';
+                            if ("vibrate" in navigator) navigator.vibrate(50);
+                        }
+                    }
+                },
+
+                reproducirMensaje(base64, busSender, lineaMensaje) {
+                    this.estadoRadio = 'recibiendo'; 
+                    this.elQueHabla = busSender;
+                    this.lineaQueHabla = lineaMensaje === 'General' ? 'GLOBAL / EMERGENCIA' : lineaMensaje;
+                    
+                    if ("vibrate" in navigator) navigator.vibrate([100, 100, 100]); 
+                    
+                    clearTimeout(this.watchdogRadio);
+                    this.watchdogRadio = setTimeout(() => { this.resetRadio(); }, 10000);
+
+                    const tipoSonido = lineaMensaje === 'General' ? 'global' : 'local';
+                    this.playAudioAviso(tipoSonido);
+                    
+                    const esperaVoz = lineaMensaje === 'General' ? 1400 : 500;
+
+                    setTimeout(() => {
+                        const audio = new Audio(base64);
+                        audio.play().catch(e => { console.log("Bloqueado"); this.resetRadio(); });
+                        
+                        audio.onended = () => { this.resetRadio(); };
+                        audio.onerror = () => { this.resetRadio(); };
+                    }, esperaVoz); 
+                },
+
+                repetirUltimoAudio() {
+                    if (!this.ultimoAudio || this.estadoRadio !== 'reposo') return;
+                    this.estadoRadio = 'recibiendo';
+                    const audio = new Audio(this.ultimoAudio);
+                    audio.play().catch(e => { console.log("Bloqueado"); this.resetRadio(); });
+                    audio.onended = () => { this.resetRadio(); };
+                },
+
+                resetRadio() {
+                    this.estadoRadio = 'reposo'; this.elQueHabla = null; this.lineaQueHabla = '';
+                    clearTimeout(this.watchdogRadio);
+                },
+
+                blobToBase64(blob) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader(); reader.readAsDataURL(blob);
+                        reader.onloadend = () => resolve(reader.result); reader.onerror = reject;
+                    });
+                },
+
+                playAudioAviso(tipo) {
+                    try {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        if (ctx.state === 'suspended') { ctx.resume(); }
+                        
+                        if(tipo === 'local') {
+                            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                            osc.connect(gain); gain.connect(ctx.destination);
+                            osc.type = 'triangle'; 
+                            osc.frequency.setValueAtTime(1000, ctx.currentTime);
+                            gain.gain.setValueAtTime(1.0, ctx.currentTime);
+                            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                            osc.start(); osc.stop(ctx.currentTime + 0.3);
+                        } else if (tipo === 'cierre_mic') {
+                            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                            osc.connect(gain); gain.connect(ctx.destination);
+                            osc.type = 'sine'; 
+                            osc.frequency.setValueAtTime(400, ctx.currentTime);
+                            gain.gain.setValueAtTime(0.8, ctx.currentTime);
+                            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                            osc.start(); osc.stop(ctx.currentTime + 0.2);
+                        } else if (tipo === 'global') {
+                            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                            osc.connect(gain); gain.connect(ctx.destination);
+                            osc.type = 'triangle'; 
+                            osc.frequency.setValueAtTime(800, ctx.currentTime); 
+                            osc.frequency.setValueAtTime(600, ctx.currentTime + 0.6); 
+                            
+                            gain.gain.setValueAtTime(0, ctx.currentTime);
+                            gain.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 0.1); 
+                            gain.gain.exponentialRampToValueAtTime(0.1, ctx.currentTime + 0.5); 
+                            
+                            gain.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 0.6); 
+                            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2); 
+
+                            osc.start(); osc.stop(ctx.currentTime + 1.2);
+                        } else if (tipo === 'salto') {
+                            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                            osc.connect(gain); gain.connect(ctx.destination);
+                            osc.type = 'sine'; 
+                            osc.frequency.setValueAtTime(1200, ctx.currentTime);
+                            gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                            osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.1);
+                            
+                            const osc2 = ctx.createOscillator(); const gain2 = ctx.createGain();
+                            osc2.connect(gain2); gain2.connect(ctx.destination);
+                            osc2.type = 'sine';
+                            osc2.frequency.setValueAtTime(1500, ctx.currentTime + 0.15);
+                            gain2.gain.setValueAtTime(0.5, ctx.currentTime + 0.15);
+                            gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+                            osc2.start(ctx.currentTime + 0.15); osc2.stop(ctx.currentTime + 0.25);
+                        } else if (tipo === 'llegada') {
+                            for (let i = 0; i < 2; i++) {
+                                const o = ctx.createOscillator(); const g = ctx.createGain();
+                                o.connect(g); g.connect(ctx.destination);
+                                o.type = 'square';
+                                o.frequency.setValueAtTime(800, ctx.currentTime + (i * 0.4));
+                                g.gain.setValueAtTime(1.0, ctx.currentTime + (i * 0.4));
+                                g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (i * 0.4) + 0.2);
+                                o.start(ctx.currentTime + (i * 0.4)); 
+                                o.stop(ctx.currentTime + (i * 0.4) + 0.2);
+                            }
+                        } else if (tipo === 'aviso_parada_suave') {
+                            for (let i = 0; i < 2; i++) {
+                                const o = ctx.createOscillator(); const g = ctx.createGain();
+                                o.connect(g); g.connect(ctx.destination);
+                                o.type = 'sine';
+                                o.frequency.setValueAtTime(880, ctx.currentTime + (i * 0.2));
+                                g.gain.setValueAtTime(0.6, ctx.currentTime + (i * 0.2));
+                                g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (i * 0.2) + 0.12);
+                                o.start(ctx.currentTime + (i * 0.2)); 
+                                o.stop(ctx.currentTime + (i * 0.2) + 0.12);
+                            }
+                        } else if (tipo === 'aviso_parada_fuerte') {
+                            for (let i = 0; i < 3; i++) {
+                                const o = ctx.createOscillator(); const g = ctx.createGain();
+                                o.connect(g); g.connect(ctx.destination);
+                                o.type = 'sawtooth';
+                                o.frequency.setValueAtTime(1400, ctx.currentTime + (i * 0.15));
+                                g.gain.setValueAtTime(0.8, ctx.currentTime + (i * 0.15));
+                                g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (i * 0.15) + 0.08);
+                                o.start(ctx.currentTime + (i * 0.15)); 
+                                o.stop(ctx.currentTime + (i * 0.15) + 0.08);
+                            }
+                        }
+                    } catch (e) { }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
