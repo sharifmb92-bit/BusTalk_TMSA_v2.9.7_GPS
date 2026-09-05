@@ -1,0 +1,28 @@
+{
+  "name": "BusTalk_v 2.9.7_GPS",
+  "short_name": "BusTalk",
+  "description": "Sistema de comunicación PTT y radar de paso GPS para conductores de autobús.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "scope": "./",
+  "lang": "es",
+  "id": "com.bustalk.pwa",
+  "categories": ["transportation", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
